@@ -15,17 +15,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    permissions:
+      contents: read
+      deployments: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: yarn
 
       - name: Install dependencies
@@ -49,14 +50,23 @@ jobs:
           fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
           NODE
 
-          grep -R "config.yaml" -n src workers-site || true
+          TARGET_DIRS=""
+          for dir in src workers-site; do
+            if [ -d "$dir" ]; then
+              TARGET_DIRS="${TARGET_DIRS} ${dir}"
+            fi
+          done
 
-          find src workers-site -type f \( -name "*.js" -o -name "*.mjs" -o -name "*.ts" \) \
-            -exec sed -i 's#../../config.yaml#../../config.json#g' {} \;
+          if [ -n "$TARGET_DIRS" ]; then
+            grep -R "config.yaml" -n $TARGET_DIRS || true
 
-          grep -R "config.json" -n src workers-site || true
+            find $TARGET_DIRS -type f \( -name "*.js" -o -name "*.mjs" -o -name "*.ts" \) \
+              -exec sed -i 's#../../config.yaml#../../config.json#g' {} \;
 
-      - name: Patch wrangler.toml for Wrangler v3
+            grep -R "config.json" -n $TARGET_DIRS || true
+          fi
+
+      - name: Patch wrangler.toml for Wrangler v4
         shell: bash
         run: |
           echo "Original wrangler.toml:"
@@ -73,15 +83,24 @@ jobs:
           ' wrangler.toml)
 
           if [ -z "$SITE_ENTRY_POINT" ]; then
-            SITE_ENTRY_POINT="workers-site"
+            SITE_ENTRY_POINT="."
           fi
 
-          echo "Detected site entry-point: ${SITE_ENTRY_POINT}"
+          SITE_ENTRY_POINT="${SITE_ENTRY_POINT#./}"
+          SITE_ENTRY_POINT="${SITE_ENTRY_POINT%/}"
+
+          if [ -z "$SITE_ENTRY_POINT" ] || [ "$SITE_ENTRY_POINT" = "." ]; then
+            SITE_MAIN="index.js"
+          else
+            SITE_MAIN="${SITE_ENTRY_POINT}/index.js"
+          fi
+
+          echo "Detected site main: ${SITE_MAIN}"
 
           sed -i '/entry-point/d' wrangler.toml
 
           if ! grep -qE '^main\s*=' wrangler.toml; then
-            sed -i "1imain = \"${SITE_ENTRY_POINT}/index.js\"" wrangler.toml
+            sed -i "1imain = \"${SITE_MAIN}\"" wrangler.toml
           fi
 
           if grep -q '^\[env.production\]' wrangler.toml; then
@@ -100,11 +119,10 @@ jobs:
           cat wrangler.toml
 
       - name: Publish
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          wranglerVersion: "3.90.0"
           command: deploy --env production
           postCommands: |
             yarn kv-gc
