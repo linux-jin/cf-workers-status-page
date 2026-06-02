@@ -41,12 +41,9 @@ jobs:
         run: |
           echo "Patching wrangler.toml..."
 
-          # Wrangler v3 需要 main 入口
-          if ! grep -qE '^main\s*=' wrangler.toml; then
-            sed -i '1imain = "index.js"' wrangler.toml
-          fi
+          # 不要添加 main，旧 Workers Sites 项目已有 site.entry-point
+          # 只追加 production 环境的 KV 绑定
 
-          # 写入 production 环境 KV 绑定
           cat >> wrangler.toml <<'EOF'
 
           [env.production]
