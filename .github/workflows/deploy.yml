@@ -51,11 +51,6 @@ jobs:
           environment: production
           postCommands: |
             yarn kv-gc
-          secrets: |
-            SECRET_SLACK_WEBHOOK_URL
-            SECRET_TELEGRAM_API_TOKEN
-            SECRET_TELEGRAM_CHAT_ID
-            SECRET_DISCORD_WEBHOOK_URL
         env:
           SECRET_SLACK_WEBHOOK_URL: ${{ secrets.SECRET_SLACK_WEBHOOK_URL }}
           SECRET_TELEGRAM_API_TOKEN: ${{ secrets.SECRET_TELEGRAM_API_TOKEN }}
