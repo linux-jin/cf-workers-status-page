@@ -23,30 +23,6 @@ monitors:
     expectStatus: 200 # operational status, default=200
     followRedirect: false # should fetch follow redirects, default=false
 
-  - id: self-clash-page # unique identifier
-    name: '云服务 - netlify - sub'
-    description: '订阅转换' # default=empty
-    url: 'https://sub.666986.xyz/' # URL to fetch
-    method: GET # default=GET
-    expectStatus: 200 # operational status, default=200
-    followRedirect: false # should fetch follow redirects, default=false
-  
-  - id: self-clash-suber # unique identifier
-    name: '云服务 - netlify - suber'
-    description: 'Sub Store' # default=empty
-    url: 'https://suber.666986.xyz/' # URL to fetch
-    method: GET # default=GET
-    expectStatus: 200 # operational status, default=200
-    followRedirect: false # should fetch follow redirects, default=false
-
-  - id: self-clash-box # unique identifier
-    name: '云服务 - netlify - box'
-    description: 'BoxJS' # default=empty
-    url: 'https://box.666986.xyz/' # URL to fetch
-    method: GET # default=GET
-    expectStatus: 200 # operational status, default=200
-    followRedirect: false # should fetch follow redirects, default=false
-
   - id: self-notionnav-page # unique identifier
     name: '云服务 - vercel - 诺星导航'
     description: '诺星导航' # default=empty
@@ -67,14 +43,6 @@ monitors:
     name: '云服务 - vercel - 网盘TGSTORE'
     description: '网盘TGSTORE' # default=empty
     url: 'https://tgs.666986.xyz/' # URL to fetch
-    method: GET # default=GET
-    expectStatus: 200 # operational status, default=200
-    followRedirect: false # should fetch follow redirects, default=false
-
-  - id: self-bdpcs-page # unique identifier
-    name: '云服务 - cf - 网盘bdpcs'
-    description: '网盘bdpcs' # default=empty
-    url: 'https://bdpcs.666986.xyz/' # URL to fetch
     method: GET # default=GET
     expectStatus: 200 # operational status, default=200
     followRedirect: false # should fetch follow redirects, default=false
