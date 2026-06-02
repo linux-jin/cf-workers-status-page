@@ -19,24 +19,35 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: yarn
 
-      - run: yarn install
+      - name: Install dependencies
+        run: yarn install
 
-      - run: yarn build
+      - name: Build
+        run: yarn build
         env:
           NODE_ENV: production
 
-      - name: Patch wrangler config
+      - name: Patch wrangler.toml
+        shell: bash
         run: |
-          cat >> wrangler.toml <<'EOF'
+          echo "Patching wrangler.toml..."
 
-          main = "index.js"
+          # Wrangler v3 需要 main 入口
+          if ! grep -qE '^main\s*=' wrangler.toml; then
+            sed -i '1imain = "index.js"' wrangler.toml
+          fi
+
+          # 写入 production 环境 KV 绑定
+          cat >> wrangler.toml <<'EOF'
 
           [env.production]
           kv_namespaces = [
@@ -44,13 +55,21 @@ jobs:
           ]
           EOF
 
+          echo "Current wrangler.toml:"
+          cat wrangler.toml
+
       - name: Publish
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           wranglerVersion: "3.90.0"
-          environment: production
-          command: deploy
+          command: deploy --env production
           postCommands: |
             yarn kv-gc
+          secrets: |
+            SECRET_TELEGRAM_API_TOKEN
+            SECRET_TELEGRAM_CHAT_ID
+        env:
+          SECRET_TELEGRAM_API_TOKEN: ${{ secrets.SECRET_TELEGRAM_API_TOKEN }}
+          SECRET_TELEGRAM_CHAT_ID: ${{ secrets.SECRET_TELEGRAM_CHAT_ID }}
