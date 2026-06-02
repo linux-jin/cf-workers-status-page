@@ -32,9 +32,11 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Patch wrangler KV config
+      - name: Patch wrangler config
         run: |
           cat >> wrangler.toml <<'EOF'
+
+          main = "index.js"
 
           [env.production]
           kv_namespaces = [
@@ -49,10 +51,6 @@ jobs:
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           wranglerVersion: "3.90.0"
           environment: production
+          command: deploy
           postCommands: |
             yarn kv-gc
-        env:
-          SECRET_SLACK_WEBHOOK_URL: ${{ secrets.SECRET_SLACK_WEBHOOK_URL }}
-          SECRET_TELEGRAM_API_TOKEN: ${{ secrets.SECRET_TELEGRAM_API_TOKEN }}
-          SECRET_TELEGRAM_CHAT_ID: ${{ secrets.SECRET_TELEGRAM_CHAT_ID }}
-          SECRET_DISCORD_WEBHOOK_URL: ${{ secrets.SECRET_DISCORD_WEBHOOK_URL }}
