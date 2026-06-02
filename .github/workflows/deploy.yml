@@ -36,13 +36,32 @@ jobs:
         env:
           NODE_ENV: production
 
+      - name: Convert config.yaml to config.json
+        shell: bash
+        run: |
+          yarn add -D js-yaml
+
+          node - <<'NODE'
+          const fs = require('fs');
+          const yaml = require('js-yaml');
+
+          const config = yaml.load(fs.readFileSync('config.yaml', 'utf8'));
+          fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+          NODE
+
+          grep -R "config.yaml" -n src workers-site || true
+
+          find src workers-site -type f \( -name "*.js" -o -name "*.mjs" -o -name "*.ts" \) \
+            -exec sed -i 's#../../config.yaml#../../config.json#g' {} \;
+
+          grep -R "config.json" -n src workers-site || true
+
       - name: Patch wrangler.toml for Wrangler v3
         shell: bash
         run: |
           echo "Original wrangler.toml:"
           cat wrangler.toml
 
-          # 读取旧 Workers Sites 的 entry-point，例如 workers-site
           SITE_ENTRY_POINT=$(awk '
             /^\[site\]/ { in_site=1; next }
             /^\[/ && in_site { in_site=0 }
@@ -59,15 +78,12 @@ jobs:
 
           echo "Detected site entry-point: ${SITE_ENTRY_POINT}"
 
-          # Wrangler v3 不允许 site.entry-point，需要删除
           sed -i '/entry-point/d' wrangler.toml
 
-          # 添加 main 入口
           if ! grep -qE '^main\s*=' wrangler.toml; then
             sed -i "1imain = \"${SITE_ENTRY_POINT}/index.js\"" wrangler.toml
           fi
 
-          # 避免重复追加 env.production
           if grep -q '^\[env.production\]' wrangler.toml; then
             echo "env.production already exists, skip append"
           else
