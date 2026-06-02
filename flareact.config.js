@@ -1,3 +1,5 @@
+const webpack = require('webpack')
+
 module.exports = {
   webpack: (config, options) => {
     config.module.rules.push({
@@ -5,6 +7,12 @@ module.exports = {
       type: 'json',
       use: 'yaml-loader',
     })
+
+    config.plugins.push(
+      new webpack.DefinePlugin({
+        global: 'globalThis',
+      }),
+    )
 
     return config
   },
