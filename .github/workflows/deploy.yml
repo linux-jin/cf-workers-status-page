@@ -36,23 +36,51 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Patch wrangler.toml
+      - name: Patch wrangler.toml for Wrangler v3
         shell: bash
         run: |
-          echo "Patching wrangler.toml..."
+          echo "Original wrangler.toml:"
+          cat wrangler.toml
 
-          # 不要添加 main，旧 Workers Sites 项目已有 site.entry-point
-          # 只追加 production 环境的 KV 绑定
+          # 读取旧 Workers Sites 的 entry-point，例如 workers-site
+          SITE_ENTRY_POINT=$(awk '
+            /^\[site\]/ { in_site=1; next }
+            /^\[/ && in_site { in_site=0 }
+            in_site && $1 ~ /^entry-point/ {
+              gsub(/"/, "", $3);
+              print $3;
+              exit
+            }
+          ' wrangler.toml)
 
-          cat >> wrangler.toml <<'EOF'
+          if [ -z "$SITE_ENTRY_POINT" ]; then
+            SITE_ENTRY_POINT="workers-site"
+          fi
+
+          echo "Detected site entry-point: ${SITE_ENTRY_POINT}"
+
+          # Wrangler v3 不允许 site.entry-point，需要删除
+          sed -i '/entry-point/d' wrangler.toml
+
+          # 添加 main 入口
+          if ! grep -qE '^main\s*=' wrangler.toml; then
+            sed -i "1imain = \"${SITE_ENTRY_POINT}/index.js\"" wrangler.toml
+          fi
+
+          # 避免重复追加 env.production
+          if grep -q '^\[env.production\]' wrangler.toml; then
+            echo "env.production already exists, skip append"
+          else
+            cat >> wrangler.toml <<'EOF'
 
           [env.production]
           kv_namespaces = [
             { binding = "KV_STATUS_PAGE", id = "cddae738342a487fbff2b90b3cb03123" }
           ]
           EOF
+          fi
 
-          echo "Current wrangler.toml:"
+          echo "Patched wrangler.toml:"
           cat wrangler.toml
 
       - name: Publish
