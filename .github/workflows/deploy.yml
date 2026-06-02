@@ -32,6 +32,16 @@ jobs:
         env:
           NODE_ENV: production
 
+      - name: Patch wrangler KV config
+        run: |
+          cat >> wrangler.toml <<'EOF'
+
+          [env.production]
+          kv_namespaces = [
+            { binding = "KV_STATUS_PAGE", id = "cddae738342a487fbff2b90b3cb03123" }
+          ]
+          EOF
+
       - name: Publish
         uses: cloudflare/wrangler-action@v3
         with:
@@ -39,46 +49,6 @@ jobs:
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           wranglerVersion: "3.90.0"
           environment: production
-          preCommands: |
-            KV_TITLE="cf-workers-status-page-KV_STATUS_PAGE"
-
-            echo "Checking KV namespace: ${KV_TITLE}"
-
-            KV_NAMESPACE_ID=$(wrangler kv namespace list | node -e "
-            const fs = require('fs');
-            const list = JSON.parse(fs.readFileSync(0, 'utf8'));
-            const kv = list.find(x => x.title === process.env.KV_TITLE || x.title.includes('KV_STATUS_PAGE'));
-            if (kv) {
-              console.log(kv.id);
-            }
-            ")
-
-            if [ -z "$KV_NAMESPACE_ID" ]; then
-              echo "KV namespace not found, creating..."
-              wrangler kv namespace create KV_STATUS_PAGE
-
-              KV_NAMESPACE_ID=$(wrangler kv namespace list | node -e "
-              const fs = require('fs');
-              const list = JSON.parse(fs.readFileSync(0, 'utf8'));
-              const kv = list.find(x => x.title === process.env.KV_TITLE || x.title.includes('KV_STATUS_PAGE'));
-              if (!kv) {
-                console.error('KV_STATUS_PAGE namespace still not found after create');
-                process.exit(1);
-              }
-              console.log(kv.id);
-              ")
-            else
-              echo "KV namespace already exists: ${KV_NAMESPACE_ID}"
-            fi
-
-            echo "" >> wrangler.toml
-            echo "[env.production]" >> wrangler.toml
-            echo "kv_namespaces = [{ binding = \"KV_STATUS_PAGE\", id = \"${KV_NAMESPACE_ID}\" }]" >> wrangler.toml
-
-            [ -z "$SECRET_SLACK_WEBHOOK_URL" ] && echo "Secret SECRET_SLACK_WEBHOOK_URL not set, creating dummy one..." && SECRET_SLACK_WEBHOOK_URL="default-gh-action-secret" || true
-            [ -z "$SECRET_TELEGRAM_API_TOKEN" ] && echo "Secret SECRET_TELEGRAM_API_TOKEN not set, creating dummy one..." && SECRET_TELEGRAM_API_TOKEN="default-gh-action-secret" || true
-            [ -z "$SECRET_TELEGRAM_CHAT_ID" ] && echo "Secret SECRET_TELEGRAM_CHAT_ID not set, creating dummy one..." && SECRET_TELEGRAM_CHAT_ID="default-gh-action-secret" || true
-            [ -z "$SECRET_DISCORD_WEBHOOK_URL" ] && echo "Secret SECRET_DISCORD_WEBHOOK_URL not set, creating dummy one..." && SECRET_DISCORD_WEBHOOK_URL="default-gh-action-secret" || true
           postCommands: |
             yarn kv-gc
           secrets: |
@@ -87,7 +57,6 @@ jobs:
             SECRET_TELEGRAM_CHAT_ID
             SECRET_DISCORD_WEBHOOK_URL
         env:
-          KV_TITLE: cf-workers-status-page-KV_STATUS_PAGE
           SECRET_SLACK_WEBHOOK_URL: ${{ secrets.SECRET_SLACK_WEBHOOK_URL }}
           SECRET_TELEGRAM_API_TOKEN: ${{ secrets.SECRET_TELEGRAM_API_TOKEN }}
           SECRET_TELEGRAM_CHAT_ID: ${{ secrets.SECRET_TELEGRAM_CHAT_ID }}
