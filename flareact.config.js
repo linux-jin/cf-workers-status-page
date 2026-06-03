@@ -9,6 +9,11 @@ module.exports = {
     })
 
     config.plugins.push(
+      new webpack.BannerPlugin({
+        banner: 'var global = globalThis;',
+        raw: true,
+        entryOnly: true,
+      }),
       new webpack.DefinePlugin({
         global: 'globalThis',
       }),
