@@ -100,8 +100,13 @@ jobs:
 
           sed -i '/entry-point/d' wrangler.toml
 
-          if ! grep -qE '^main\s*=' wrangler.toml; then
-            sed -i "1imain = \"${SITE_MAIN}\"" wrangler.toml
+          sed -i '/^type\s*=/d' wrangler.toml
+          sed -i '/^webpack_config\s*=/d' wrangler.toml
+
+          if grep -qE '^main\s*=' wrangler.toml; then
+            sed -i 's#^main\s*=.*#main = "dist/main.js"#' wrangler.toml
+          else
+            sed -i '1imain = "dist/main.js"' wrangler.toml
           fi
 
           if grep -q '^\[env.production\]' wrangler.toml; then
@@ -137,6 +142,17 @@ jobs:
 
           fs.writeFileSync(helmetPath, source);
           NODE
+
+      - name: Build and verify Worker bundle
+        shell: bash
+        run: |
+          ./node_modules/.bin/webpack --config node_modules/flareact/configs/webpack.worker.config.js --mode production
+          test -f dist/main.js
+          grep -q 'var global=globalThis' dist/main.js
+          if grep -q 'global\.requestAnimationFrame\|global\.cancelAnimationFrame' dist/main.js; then
+            echo "dist/main.js still contains Cloudflare-incompatible global animation frame references"
+            exit 1
+          fi
 
       - name: Publish
         uses: cloudflare/wrangler-action@v4
