@@ -35,6 +35,21 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      - name: Patch react-helmet for Cloudflare Workers
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const helmetPath = 'node_modules/react-helmet/es/Helmet.js';
+          let source = fs.readFileSync(helmetPath, 'utf8');
+
+          source = source
+            .replace(/global\.requestAnimationFrame/g, 'globalThis.requestAnimationFrame')
+            .replace(/global\.cancelAnimationFrame/g, 'globalThis.cancelAnimationFrame');
+
+          fs.writeFileSync(helmetPath, source);
+          NODE
+
       - name: Build
         run: yarn build
         env:
@@ -102,18 +117,6 @@ jobs:
 
           sed -i '/entry-point/d' wrangler.toml
 
-          if grep -qE '^compatibility_date\s*=' wrangler.toml; then
-            sed -i 's/^compatibility_date\s*=.*/compatibility_date = "2024-09-23"/' wrangler.toml
-          else
-            sed -i '1icompatibility_date = "2024-09-23"' wrangler.toml
-          fi
-
-          if grep -qE '^compatibility_flags\s*=' wrangler.toml; then
-            sed -i 's/^compatibility_flags\s*=.*/compatibility_flags = ["nodejs_compat"]/' wrangler.toml
-          else
-            sed -i '/^compatibility_date\s*=/acompatibility_flags = ["nodejs_compat"]' wrangler.toml
-          fi
-
           if ! grep -qE '^main\s*=' wrangler.toml; then
             sed -i "1imain = \"${SITE_MAIN}\"" wrangler.toml
           fi
@@ -124,8 +127,6 @@ jobs:
             cat >> wrangler.toml <<'EOF'
 
           [env.production]
-          compatibility_date = "2024-09-23"
-          compatibility_flags = ["nodejs_compat"]
           kv_namespaces = [
             { binding = "KV_STATUS_PAGE", id = "cddae738342a487fbff2b90b3cb03123" }
           ]
