@@ -35,21 +35,6 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Patch react-helmet for Cloudflare Workers
-        shell: bash
-        run: |
-          node - <<'NODE'
-          const fs = require('fs');
-          const helmetPath = 'node_modules/react-helmet/es/Helmet.js';
-          let source = fs.readFileSync(helmetPath, 'utf8');
-
-          source = source
-            .replace(/global\.requestAnimationFrame/g, 'globalThis.requestAnimationFrame')
-            .replace(/global\.cancelAnimationFrame/g, 'globalThis.cancelAnimationFrame');
-
-          fs.writeFileSync(helmetPath, source);
-          NODE
-
       - name: Build
         run: yarn build
         env:
@@ -58,8 +43,6 @@ jobs:
       - name: Convert config.yaml to config.json
         shell: bash
         run: |
-          yarn add -D js-yaml
-
           node - <<'NODE'
           const fs = require('fs');
           const yaml = require('js-yaml');
@@ -135,6 +118,25 @@ jobs:
 
           echo "Patched wrangler.toml:"
           cat wrangler.toml
+
+      - name: Patch react-helmet for Cloudflare Workers
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const helmetPath = 'node_modules/react-helmet/es/Helmet.js';
+          let source = fs.readFileSync(helmetPath, 'utf8');
+
+          source = source
+            .replace(/global\.requestAnimationFrame/g, 'globalThis.requestAnimationFrame')
+            .replace(/global\.cancelAnimationFrame/g, 'globalThis.cancelAnimationFrame');
+
+          if (/global\.(requestAnimationFrame|cancelAnimationFrame)/.test(source)) {
+            throw new Error('react-helmet still contains Cloudflare-incompatible global animation frame references');
+          }
+
+          fs.writeFileSync(helmetPath, source);
+          NODE
 
       - name: Publish
         uses: cloudflare/wrangler-action@v4
